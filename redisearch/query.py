@@ -29,7 +29,7 @@ class Query(object):
         self._in_order = False
         self._sortby = None
         self._return_fields = []
-
+        self._summarize_fields = []
 
     def query_string(self):
         """
@@ -49,6 +49,23 @@ class Query(object):
         Only return values from these fields
         """
         self._return_fields = fields
+        return self
+
+    def summarize(self, *fields, **options):
+        tags = options.pop('tags', [])
+        context_len = options.pop('context_len', 0)
+        format = options.pop('format', '')
+
+        for field in fields:
+            params = ['FIELD', field]
+            if tags:
+                params += ['TAGS', tags[0], tags[1]]
+            if format:
+                params += ['FORMAT', format]
+            if context_len:
+                params += ['FRAGSIZE', context_len]
+
+            self._summarize_fields += params
         return self
 
     def slop(self, slop):
@@ -117,11 +134,13 @@ class Query(object):
             args.append('SORTBY')
             args += self._sortby.args
 
+        if self._summarize_fields:
+            args += ['HIGHLIGHTER', 'DEFAULT'] + self._summarize_fields
+
         args += ["LIMIT", self._offset, self._num]
-        
+
         return args
 
-        
     def paging(self, offset, num):
         """
         Set the paging for the query (defaults to 0..10).
